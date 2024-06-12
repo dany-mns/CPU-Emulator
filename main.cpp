@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 #include <cstdint>
 
 #define MAX_MEMORY 64 * 1024 // 64 Kb
@@ -16,6 +17,11 @@ struct Memory
         {
             data[i] = 0;
         }
+    }
+
+    Byte operator[](uint32_t address) const
+    {
+        return data[address];
     }
 };
 
@@ -38,19 +44,31 @@ struct CPU
     void reset(Memory &memory)
     {
         program_counter = 0xFFFC;
-        stack_pointer = 0x0100;
+        stack_pointer = 0xFF; // TODO maybe we need another value
         decimal_flag = 0;
         A = X = Y = 0;
         carry_flag = zero_flag = interrupt_disable_flag = decimal_flag = break_flag = overflow_flag = negative_flag = 0;
         memory.init();
     }
+
+    Byte fetch(uint32_t& cycles, Memory& memory) {
+        cycles--;
+        return memory[program_counter++];
+    }
+
+    void execute(uint32_t cycles, Memory &memory) {
+        while(cycles > 0) {
+            Byte next_instruction = fetch(cycles, memory);
+        }
+
+    }
 };
 
 int main()
 {
+    std::cout << "======== START EMULATING THE CPU ========" << std::endl;
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
-    printf("hello\n");
     return 0;
 }
