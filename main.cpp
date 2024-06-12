@@ -42,6 +42,7 @@ struct CPU
     Byte negative_flag : 1;
 
     static constexpr Byte INS_LDA_IM = 0xA9;
+    static constexpr Byte INS_LDA_ZP = 0xA5;
 
     void reset(Memory &memory)
     {
@@ -59,6 +60,18 @@ struct CPU
         return memory[program_counter++];
     }
 
+    Byte read_byte(uint32_t &cycles, Memory &memory, Byte address)
+    {
+        cycles--;
+        return memory.data[address];
+    }
+
+    void lda_set_status()
+    {
+        zero_flag = A == 0;
+        negative_flag = (A & 0b1000000) > 0;
+    }
+
     void execute(uint32_t cycles, Memory &memory)
     {
         while (cycles > 0)
@@ -71,9 +84,18 @@ struct CPU
                 std::cout << "LDA IMD" << std::endl;
                 Byte value = fetch(cycles, memory);
                 A = value;
-                zero_flag = A == 0;
-                negative_flag = (A & 0b1000000) > 0;
-                std:: cout << "Assigned value " << value << " to reg A"  << std::endl;
+                lda_set_status();
+                std::cout << "Assigned value " << (int)value << " to reg A" << std::endl;
+            }
+            break;
+
+            case INS_LDA_ZP:
+            {
+                std::cout << "LDA ZERO PAGE" << std::endl;
+                Byte zero_page_address = fetch(cycles, memory);
+                A = read_byte(cycles, memory, zero_page_address);
+                lda_set_status();
+                std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
             default:
@@ -89,9 +111,10 @@ int main()
     std::cout << "======== START EMULATING THE CPU ========" << std::endl;
     Memory memory;
     CPU cpu;
+    cpu.reset(memory);
+
     memory.data[0xFFFC] = 0xA9;
     memory.data[0xFFFD] = 0x9;
-    cpu.reset(memory);
     cpu.execute(2, memory);
     return 0;
 }
