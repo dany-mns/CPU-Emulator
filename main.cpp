@@ -41,6 +41,8 @@ struct CPU
     Byte overflow_flag : 1;
     Byte negative_flag : 1;
 
+    static constexpr Byte INS_LDA_IM = 0xA9;
+
     void reset(Memory &memory)
     {
         program_counter = 0xFFFC;
@@ -51,16 +53,34 @@ struct CPU
         memory.init();
     }
 
-    Byte fetch(uint32_t& cycles, Memory& memory) {
+    Byte fetch(uint32_t &cycles, Memory &memory)
+    {
         cycles--;
         return memory[program_counter++];
     }
 
-    void execute(uint32_t cycles, Memory &memory) {
-        while(cycles > 0) {
-            Byte next_instruction = fetch(cycles, memory);
+    void execute(uint32_t cycles, Memory &memory)
+    {
+        while (cycles > 0)
+        {
+            Byte instruction = fetch(cycles, memory);
+            switch (instruction)
+            {
+            case INS_LDA_IM:
+            {
+                std::cout << "LDA IMD" << std::endl;
+                Byte value = fetch(cycles, memory);
+                A = value;
+                zero_flag = A == 0;
+                negative_flag = (A & 0b1000000) > 0;
+                std:: cout << "Assigned value " << value << " to reg A"  << std::endl;
+            }
+            break;
+            default:
+                std::cout << "Unknown instruction: " << instruction << std::endl;
+                break;
+            }
         }
-
     }
 };
 
@@ -69,6 +89,9 @@ int main()
     std::cout << "======== START EMULATING THE CPU ========" << std::endl;
     Memory memory;
     CPU cpu;
+    memory.data[0xFFFC] = 0xA9;
+    memory.data[0xFFFD] = 0x9;
     cpu.reset(memory);
+    cpu.execute(2, memory);
     return 0;
 }
