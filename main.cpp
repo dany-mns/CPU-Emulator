@@ -17,10 +17,15 @@ struct CPU {
     Byte B: 1;
     Byte V: 1;
     Byte N: 1;
-    Byte C: 1;
+
+    void reset() {
+        program_counter = 0xFFC;
+        D = 0;
+    }
 };
 
 int main() {
+    CPU cpu;
     printf("hello\n");
     return 0;
 }
