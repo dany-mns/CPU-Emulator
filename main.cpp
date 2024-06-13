@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cassert>
 #include <iostream>
 #include <cstdint>
 
@@ -56,12 +57,14 @@ struct CPU
 
     Byte fetch(uint32_t &cycles, Memory &memory)
     {
+        assert(cycles > 0);
         cycles--;
         return memory[program_counter++];
     }
 
     Byte read_byte(uint32_t &cycles, Memory &memory, Byte address)
     {
+        assert(cycles > 0);
         cycles--;
         return memory.data[address];
     }
@@ -113,8 +116,9 @@ int main()
     CPU cpu;
     cpu.reset(memory);
 
-    memory.data[0xFFFC] = 0xA9;
-    memory.data[0xFFFD] = 0x9;
-    cpu.execute(2, memory);
+    memory.data[0xFFFC] = 0xA5;
+    memory.data[0xFFFD] = 0x42;
+    memory.data[0x42] = 0x69;
+    cpu.execute(3, memory);
     return 0;
 }
