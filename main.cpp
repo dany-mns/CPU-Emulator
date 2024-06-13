@@ -44,6 +44,7 @@ struct CPU
 
     static constexpr Byte INS_LDA_IM = 0xA9;
     static constexpr Byte INS_LDA_ZP = 0xA5;
+    static constexpr Byte INS_LDA_ZPX = 0xB5;
 
     void reset(Memory &memory)
     {
@@ -55,16 +56,21 @@ struct CPU
         memory.init();
     }
 
-    Byte fetch(uint32_t &cycles, Memory &memory)
+    Byte fetch_byte(uint32_t &cycles, Memory &memory)
     {
         assert(cycles > 0);
         cycles--;
         return memory[program_counter++];
     }
 
+    Word fetc_word(uint32_t &cycles, Memory &memory) {
+
+    }
+
     Byte read_byte(uint32_t &cycles, Memory &memory, Byte address)
     {
         assert(cycles > 0);
+        assert(address < MAX_MEMORY);
         cycles--;
         return memory.data[address];
     }
@@ -79,13 +85,13 @@ struct CPU
     {
         while (cycles > 0)
         {
-            Byte instruction = fetch(cycles, memory);
+            Byte instruction = fetch_byte(cycles, memory);
             switch (instruction)
             {
             case INS_LDA_IM:
             {
                 std::cout << "LDA IMD" << std::endl;
-                Byte value = fetch(cycles, memory);
+                Byte value = fetch_byte(cycles, memory);
                 A = value;
                 lda_set_status();
                 std::cout << "Assigned value " << (int)value << " to reg A" << std::endl;
@@ -95,8 +101,19 @@ struct CPU
             case INS_LDA_ZP:
             {
                 std::cout << "LDA ZERO PAGE" << std::endl;
-                Byte zero_page_address = fetch(cycles, memory);
+                Byte zero_page_address = fetch_byte(cycles, memory);
                 A = read_byte(cycles, memory, zero_page_address);
+                lda_set_status();
+                std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
+            }
+            break;
+
+            case INS_LDA_ZPX:
+            {
+                std::cout << "LDA ZERO PAGE X" << std::endl;
+                Byte zero_page_address = fetch_byte(cycles, memory);
+                Byte new_address = zero_page_address + X;
+                A = read_byte(cycles, memory, new_address);
                 lda_set_status();
                 std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
@@ -119,6 +136,6 @@ int main()
     memory.data[0xFFFC] = 0xA5;
     memory.data[0xFFFD] = 0x42;
     memory.data[0x42] = 0x69;
-    cpu.execute(3, memory);
+    cpu.execute(2, memory);
     return 0;
 }
