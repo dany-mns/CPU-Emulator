@@ -38,6 +38,13 @@ struct Memory
         data[address + 1] = (value >> 8) & 0xFF;
         decrement_cycles(cycles, 2);
     }
+
+    void write_byte(Byte value, uint32_t address, uint32_t &cycles)
+    {
+        assert(cycles >= 1);
+        data[address] = value;
+        decrement_cycles(cycles, 1);
+    }
 };
 
 struct CPU
@@ -60,6 +67,9 @@ struct CPU
     static constexpr Byte INS_LDA_ZP = 0xA5;
     static constexpr Byte INS_LDA_ZPX = 0xB5;
     static constexpr Byte INS_JSR = 0x20;
+    static constexpr Byte INS_LDA_ABS = 0xAD;
+    static constexpr Byte INS_STA_ZERO_PAGE = 0x85;
+    static constexpr Byte INS_STA_ABS = 0x8D;
 
     void reset(Memory &memory)
     {
@@ -87,7 +97,7 @@ struct CPU
         return (second_byte << 8) | first_byte;
     }
 
-    Byte read_byte(uint32_t &cycles, Memory &memory, Byte address)
+    Byte read_byte(uint32_t &cycles, Memory &memory, Word address)
     {
         assert(address < MAX_MEMORY);
         decrement_cycles(cycles, 1);
@@ -137,17 +147,47 @@ struct CPU
                 std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
+
             case INS_JSR:
             {
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
                 memory.write_word(program_counter - 1, stack_pointer, cycles);
                 stack_pointer--;
-                std::cout << "Override PC old value " << program_counter << " with new value " << subroutine_addr << std::endl;
+                std::cout << "Override PC old value " << std::hex << program_counter << " with new value " << subroutine_addr << std::endl;
                 program_counter = subroutine_addr;
                 decrement_cycles(cycles, 1);
             }
             break;
+
+            case INS_LDA_ABS:
+            {
+                std::cout << "LDA Absolute" << std::endl;
+                Word address = fetch_word(cycles, memory);
+                A = read_byte(cycles, memory, address);
+                lda_set_status();
+                std::cout << "Assigned value " << (int)A << " to register A" << std::endl;
+            }
+            break;
+
+            case INS_STA_ZERO_PAGE:
+            {
+                std::cout << "STA Zero Page" << std::endl;
+                Byte address = fetch_byte(cycles, memory);
+                memory.write_byte(A, address, cycles);
+                std::cout << "Value " << (int)A << " was written at memory location: " << std::hex << address << std::endl;
+            }
+            break;
+
+            case INS_STA_ABS:
+            {
+                std::cout <<"STA ABSOLUTE" << std::endl;
+                Word address = fetch_word(cycles, memory);
+                memory.write_byte(A, address, cycles);
+                std::cout << "Value " << (int)A << " was written at memory location: " << std::hex << address << std::endl;
+            }
+            break;
+
             default:
                 std::cout << "Unknown instruction: " << instruction << std::endl;
                 break;
@@ -156,9 +196,24 @@ struct CPU
     }
 };
 
-int main()
+void test_sta_absolute() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_STA_ABS;
+    memory.data[0xFFFD] = 0x01;
+    memory.data[0xFFFE] = 0x02;
+    memory.data[0x0201] = 0x68;
+
+    cpu.A = 0x69;
+
+    cpu.execute(4, memory);
+    assert(memory.data[0x0201] == 0x69);
+}
+
+void test_ins_jsr()
 {
-    std::cout << "======== START EMULATING THE CPU ========" << std::endl;
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -169,5 +224,46 @@ int main()
     memory.data[0x4242] = CPU::INS_LDA_IM;
     memory.data[0x4243] = 0x69;
     cpu.execute(8, memory);
+    assert(cpu.A == 0x69);
+}
+
+void test_sta_zero_page()
+{
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_STA_ZERO_PAGE;
+    memory.data[0xFFFD] = 0x01;
+
+    cpu.A = 0x69;
+    cpu.execute(3, memory);
+
+    assert(memory.data[0x1] == 0x69);
+}
+
+void test_ins_lda_abs()
+{
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_LDA_ABS;
+    memory.data[0xFFFD] = 0x80;
+    memory.data[0xFFFE] = 0x42;
+
+    memory.data[0x4280] = 0x69;
+
+    cpu.execute(4, memory);
+    assert(cpu.A == 0x69);
+}
+
+int main()
+{
+    std::cout << "======== START EMULATING THE CPU ========" << std::endl;
+    // test_ins_jsr();
+    // test_ins_lda_abs();
+    // test_sta_zero_page();
+    test_sta_absolute();
     return 0;
 }
