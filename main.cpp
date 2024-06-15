@@ -90,6 +90,19 @@ struct CPU
     static constexpr Byte INS_STACK_PLA = 0x68;
     static constexpr Byte INS_STACK_PLP = 0x28;
 
+    Byte all_flags() {
+        Byte flags = 0;
+        flags |= (carry_flag & 0x01) << 0;
+        flags |= (zero_flag & 0x01) << 1;
+        flags |= (interrupt_disable_flag & 0x01) << 2;
+        flags |= (decimal_flag & 0x01) << 3;
+        flags |= (break_flag & 0x01) << 4;
+        flags |= (unused_flag & 0x01) << 5;
+        flags |= (overflow_flag & 0x01) << 6;
+        flags |= (negative_flag & 0x01) << 7;
+        return flags;        
+    }
+
     void reset(Memory &memory)
     {
         PC = 0xFFFC;
@@ -304,6 +317,13 @@ struct CPU
                 std::cout << "Push val reg A " << to_hex(A) << " to stack" << std::endl;
                 // TODO why 3 cycles?
                 push_byte_to_stack(cycles, memory, A);                
+            }
+            break;
+
+            case INS_STACK_PHP:
+            {
+                std::cout << "Push val CPU flags  " << to_hex(all_flags()) << " to stack" << std::endl;
+                push_byte_to_stack(cycles, memory, all_flags());
             }
             break;
 
