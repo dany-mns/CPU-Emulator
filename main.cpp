@@ -19,7 +19,7 @@ void decrement_cycles(uint32_t &cycles, uint32_t dec_value)
 
 std::string to_hex(unsigned short a) {
     std::stringstream stream;
-    stream << "0x" << std::hex << std::setw(4) << std::setfill('0') << a;
+    stream << "0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << a;
     return stream.str();
 }
 
@@ -69,6 +69,7 @@ struct CPU
     Byte interrupt_disable_flag : 1;
     Byte decimal_flag : 1;
     Byte break_flag : 1;
+    Byte unused_flag: 1;
     Byte overflow_flag : 1;
     Byte negative_flag : 1;
 
@@ -80,6 +81,8 @@ struct CPU
     static constexpr Byte INS_LDA_ABS = 0xAD;
     static constexpr Byte INS_STA_ZERO_PAGE = 0x85;
     static constexpr Byte INS_STA_ABS = 0x8D;
+    static constexpr Byte INS_JMP_ABS = 0x4C;
+    static constexpr Byte INS_JMP_INDIRECT = 0x6C;
 
     void reset(Memory &memory)
     {
@@ -129,12 +132,12 @@ struct CPU
         return byte_value;
     }
 
-    Byte read_word_from_memory(uint32_t &cycles, Memory &memory, Word address)
+    Word read_word_from_memory(uint32_t &cycles, Memory &memory, Word address)
     {
         assert(address < MAX_MEMORY);
         Byte first_byte = read_byte_from_memory(cycles, memory, address);
-        Byte second_byte = read_byte_from_memory(cycles, memory, address - 1);
-        Word word_value = (first_byte << 8) | second_byte;
+        Byte second_byte = read_byte_from_memory(cycles, memory, address + 1);
+        Word word_value = (second_byte << 8) | first_byte;
         std::cout << "WORD value " << to_hex(word_value) << " from memory address: " << to_hex(address) << std::endl;
         return word_value;
     }
@@ -161,7 +164,8 @@ struct CPU
 
     void execute(uint32_t cycles, Memory &memory)
     {
-        while (cycles > 0)
+        bool stop_execution = false;
+        while (cycles > 0 && !stop_execution)
         {
             Byte instruction = fetch_byte(cycles, memory);
             switch (instruction)
@@ -247,13 +251,61 @@ struct CPU
             }
             break;
 
+            case INS_JMP_ABS:
+            {
+                Word address = fetch_word(cycles, memory);
+                std::cout << "Jumping using JMP Absolute from " << to_hex(PC) << " to address " << to_hex(address) << std::endl;
+                PC = address;
+            }
+            break;
+
+            case INS_JMP_INDIRECT:
+            {
+                Word address = fetch_word(cycles, memory);
+                Word new_PC = read_word_from_memory(cycles, memory, address);
+                std::cout << "In the JMP instruction found address " << to_hex(address) << ", take PC address from that memory location" << std::endl; 
+                std::cout << "Jumping using JMP INDIRECT from " << to_hex(PC) << " to address " << to_hex(new_PC) << std::endl;
+                PC = new_PC;
+            }
+            break;
+
             default:
-                std::cout << "Unknown instruction: " << to_hex(instruction) << std::endl;
+                std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
+                stop_execution = true;
                 break;
             }
         }
     }
 };
+
+void test_jmp_indirect() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_JMP_INDIRECT;
+    memory.data[0xFFFD] = 0x20;
+    memory.data[0xFFFE] = 0x01;
+    memory.data[0x0120] = 0xFC;
+    memory.data[0x0121] = 0xBA;
+
+    cpu.execute(5, memory);
+    assert(cpu.PC == 0xBAFC);
+}
+
+void test_jmp_absolute() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_JMP_ABS;
+    memory.data[0xFFFD] = 0x01;
+    memory.data[0xFFFE] = 0x02;
+
+    cpu.execute(3, memory);
+
+    assert(cpu.PC == 0x0201);
+}
 
 void test_sta_absolute() {
     Memory memory;
@@ -342,6 +394,8 @@ int main()
     // test_ins_lda_abs();
     // test_sta_zero_page();
     // test_sta_absolute();
-    test_ins_rts();
+    // test_ins_rts();
+    // test_jmp_absolute();
+    test_jmp_indirect();
     return 0;
 }
