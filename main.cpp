@@ -153,7 +153,7 @@ struct CPU
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
                 memory.write_word(program_counter - 1, stack_pointer, cycles);
-                stack_pointer--;
+                stack_pointer -= 2;
                 std::cout << "Override PC old value " << std::hex << program_counter << " with new value " << subroutine_addr << std::endl;
                 program_counter = subroutine_addr;
                 decrement_cycles(cycles, 1);
