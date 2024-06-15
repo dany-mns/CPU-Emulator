@@ -83,6 +83,13 @@ struct CPU
     static constexpr Byte INS_STA_ABS = 0x8D;
     static constexpr Byte INS_JMP_ABS = 0x4C;
     static constexpr Byte INS_JMP_INDIRECT = 0x6C;
+    static constexpr Byte INS_STACK_TSX = 0xBA;
+    static constexpr Byte INS_STACK_TXS = 0x8A;
+    static constexpr Byte INS_STACK_TXS = 0x9A;
+    static constexpr Byte INS_STACK_PHA = 0x48;
+    static constexpr Byte INS_STACK_PHP = 0x08;
+    static constexpr Byte INS_STACK_PLA = 0x68;
+    static constexpr Byte INS_STACK_PLP = 0x28;
 
     void reset(Memory &memory)
     {
@@ -266,6 +273,22 @@ struct CPU
                 std::cout << "In the JMP instruction found address " << to_hex(address) << ", take PC address from that memory location" << std::endl; 
                 std::cout << "Jumping using JMP INDIRECT from " << to_hex(PC) << " to address " << to_hex(new_PC) << std::endl;
                 PC = new_PC;
+            }
+            break;
+
+            case INS_STACK_TSX:
+            {
+                std::cout << "Copies the current contents of the stack register " << SP << " into the X register" << std::endl;
+                std::cout << "Setting CPU flags" << std::endl;
+                X = SP;
+                zero_flag = X == 0;
+                negative_flag = (X & 0b1000000) == 1;
+            }
+            break;
+
+            case INS_STACK_TXS:
+            {
+
             }
             break;
 
