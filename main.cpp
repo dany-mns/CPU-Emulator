@@ -212,7 +212,8 @@ struct CPU
             {
                 std::cout << "Returning from a subroutine using RTS instruction" << std::endl;
                 std::cout << "Reading program counter register from stack" << std::endl;
-                Word return_address = read_word_from_stack(cycles, memory);
+                // We increment 1 because PC was added with value PC - 1 by JSR instruction
+                Word return_address = read_word_from_stack(cycles, memory) + 1;
                 std::cout << "Override old value " << to_hex(PC) << " of PC register with new value " << to_hex(return_address) << std::endl;
                 PC = return_address;
             } 
@@ -284,7 +285,7 @@ void test_ins_rts()
     memory.data[0x4244] = CPU::INS_RTS;
     cpu.execute(11, memory); // TODO how many cycles we really need (14? do I miss to decrement somewhere?)
 
-    assert(cpu.PC == 0xFFFE);
+    assert(cpu.PC == 0xFFFF);
     assert(cpu.A == 0x69);
 }
 
