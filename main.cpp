@@ -201,11 +201,9 @@ struct CPU
             {
                 std::cout << "Returning from a subroutine using RTS instruction" << std::endl;
                 std::cout << "Reading program counter register from stack" << std::endl;
-                Byte f_byte = read_byte_from_memory(cycles, memory, SP_address() + 2);
-                Byte s_byte = read_byte_from_memory(cycles, memory, SP_address() + 1);
                 Word PC_from_stack = read_word_from_stack(cycles, memory);
                 Word return_address = read_word_from_memory(cycles, memory, PC_from_stack);
-                std::cout << "Override old value " << std::hex << " of PC register with new value " << std::hex << return_address << std::endl;
+                std::cout << "Override old value " << std::hex << PC << " of PC register with new value " << std::hex << return_address << std::endl;
                 PC = return_address;
             } 
             break;
