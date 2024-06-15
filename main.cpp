@@ -84,7 +84,6 @@ struct CPU
     static constexpr Byte INS_JMP_ABS = 0x4C;
     static constexpr Byte INS_JMP_INDIRECT = 0x6C;
     static constexpr Byte INS_STACK_TSX = 0xBA;
-    static constexpr Byte INS_STACK_TXS = 0x8A;
     static constexpr Byte INS_STACK_TXS = 0x9A;
     static constexpr Byte INS_STACK_PHA = 0x48;
     static constexpr Byte INS_STACK_PHP = 0x08;
@@ -105,12 +104,17 @@ struct CPU
         return 0x0100 | SP;
     }
 
-    void push_pc_to_stack(uint32_t& cycles, Memory& memory) {
-        std::cout << "Saving PC register with value " << to_hex(PC - 1) << " on stack at address " << to_hex(SP_address()) << std::endl;
-        // TODO why we push PC - 1
-        memory.write_byte((PC -1) >> 8, SP_address(), cycles);
+    void push_word_to_stack(uint32_t& cycles, Memory& memory, Word value) {
+        std::cout << "Saving word value " << to_hex(value) << " on stack at address " << to_hex(SP_address()) << std::endl;
+        memory.write_byte((value) >> 8, SP_address(), cycles);
         SP--;
-        memory.write_byte((PC - 1) & 0xFF, SP_address(), cycles);
+        memory.write_byte((value) & 0xFF, SP_address(), cycles);
+        SP--;
+    }
+
+    void push_byte_to_stack(uint32_t& cycles, Memory& memory, Byte value) {
+        std::cout << "Saving byte value " << to_hex(value) << " on stack at address " << to_hex(SP_address()) << std::endl;
+        memory.write_byte(value, SP_address(), cycles);
         SP--;
     }
 
@@ -212,7 +216,8 @@ struct CPU
             {
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
-                push_pc_to_stack(cycles, memory);
+                // TODO why we push PC - 1
+                push_word_to_stack(cycles, memory, PC - 1);
                 std::cout << "Override PC old value " << to_hex(PC) << " with new value " << to_hex(subroutine_addr) << std::endl;
                 PC = subroutine_addr;
                 decrement_cycles(cycles, 1);
@@ -288,7 +293,17 @@ struct CPU
 
             case INS_STACK_TXS:
             {
+                std::cout << "Copy X with value " << to_hex(X) << " in SP" << std::endl;
+                SP = X;
+                cycles--;
+            }
+            break;
 
+            case INS_STACK_PHA:
+            {
+                std::cout << "Push val reg A " << to_hex(A) << " to stack" << std::endl;
+                // TODO why 3 cycles?
+                push_byte_to_stack(cycles, memory, A);                
             }
             break;
 
@@ -300,6 +315,18 @@ struct CPU
         }
     }
 };
+
+void test_pha() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_STACK_PHA;
+    cpu.A = 0x69;
+    cpu.execute(3, memory);
+
+    assert(memory[cpu.SP_address() + 1] == 0x69);
+}
 
 void test_jmp_indirect() {
     Memory memory;
@@ -419,6 +446,7 @@ int main()
     // test_sta_absolute();
     // test_ins_rts();
     // test_jmp_absolute();
-    test_jmp_indirect();
+    // test_jmp_indirect();
+    test_pha();
     return 0;
 }
