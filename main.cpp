@@ -145,7 +145,7 @@ struct CPU
         return byte_value;
     }
 
-    Word read_word_from_stack(uint32_t cycles, Memory& memory) {
+    Word read_word_from_stack(uint32_t& cycles, Memory& memory) {
         Byte s_byte = read_byte_from_stack(cycles, memory);
         Byte f_byte = read_byte_from_stack(cycles, memory);
         std::cout << "First byte from stack is " << to_hex(f_byte) << " second byte from stack is " << to_hex(s_byte) << std::endl;
