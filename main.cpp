@@ -389,7 +389,7 @@ void test_ins_lda_abs()
 
 int main()
 {
-    std::cout << "======== START EMULATING THE CPU ========" << std::endl;
+    std::cout << "======== START EMULATING THE 6502 CPU ========" << std::endl;
     // test_ins_jsr();
     // test_ins_lda_abs();
     // test_sta_zero_page();
