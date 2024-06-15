@@ -281,7 +281,7 @@ void test_ins_rts()
     memory.data[0x4242] = CPU::INS_LDA_IM;
     memory.data[0x4243] = 0x69;
     memory.data[0x4244] = CPU::INS_RTS;
-    cpu.execute(11, memory); // TODO compute later
+    cpu.execute(11, memory); // TODO how many cycles we really need (14? do I miss to decrement somewhere?)
 
     assert(cpu.PC == 0xFFFE);
     assert(cpu.A == 0x69);
