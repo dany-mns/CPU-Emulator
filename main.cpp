@@ -49,8 +49,8 @@ struct Memory
 
 struct CPU
 {
-    Word program_counter;
-    Byte stack_pointer;
+    Word PC;
+    Byte SP;
 
     Byte A, X, Y;
 
@@ -67,41 +67,79 @@ struct CPU
     static constexpr Byte INS_LDA_ZP = 0xA5;
     static constexpr Byte INS_LDA_ZPX = 0xB5;
     static constexpr Byte INS_JSR = 0x20;
+    static constexpr Byte INS_RTS = 0x60;
     static constexpr Byte INS_LDA_ABS = 0xAD;
     static constexpr Byte INS_STA_ZERO_PAGE = 0x85;
     static constexpr Byte INS_STA_ABS = 0x8D;
 
     void reset(Memory &memory)
     {
-        program_counter = 0xFFFC;
-        stack_pointer = 0xFF; // TODO maybe we need another value
+        PC = 0xFFFC;
+        SP = 0xFF;
         decimal_flag = 0;
         A = X = Y = 0;
         carry_flag = zero_flag = interrupt_disable_flag = decimal_flag = break_flag = overflow_flag = negative_flag = 0;
         memory.init();
     }
 
+    Word SP_address() const {
+        return 0x0100 | SP;
+    }
+
+    void push_pc_to_stack(uint32_t& cycles, Memory& memory) {
+        std::cout << "Saving PC register with value " << std::hex << PC - 1 << " on stack at address " << std::hex << SP_address();
+        memory.write_byte((PC -1) >> 8, SP_address(), cycles);
+        SP--;
+        memory.write_byte((PC - 1) & 0xFF, SP, cycles);
+        SP--;
+    }
+
     Byte fetch_byte(uint32_t &cycles, Memory &memory)
     {
         decrement_cycles(cycles, 1);
-        return memory[program_counter++];
+        return memory[PC++];
     }
 
     Word fetch_word(uint32_t &cycles, Memory &memory)
     {
-        Byte first_byte = memory.data[program_counter++];
-        Byte second_byte = memory.data[program_counter++];
+        Byte first_byte = memory.data[PC++];
+        Byte second_byte = memory.data[PC++];
         decrement_cycles(cycles, 2);
 
         // little-endian -> second_byte "+" first_byte
         return (second_byte << 8) | first_byte;
     }
 
-    Byte read_byte(uint32_t &cycles, Memory &memory, Word address)
+    Byte read_byte_from_memory(uint32_t &cycles, Memory &memory, Word address)
     {
         assert(address < MAX_MEMORY);
         decrement_cycles(cycles, 1);
-        return memory.data[address];
+        Byte byte_value = memory.data[address];
+        std::cout << "Read BYTE value " << std::hex << byte_value << " from memory address: " << std::hex << address << std::endl;
+        return byte_value;
+    }
+
+    Byte read_word_from_memory(uint32_t &cycles, Memory &memory, Word address)
+    {
+        assert(address < MAX_MEMORY);
+        Byte first_byte = read_byte_from_memory(cycles, memory, address);
+        Byte second_byte = read_byte_from_memory(cycles, memory, address - 1);
+        Word word_value = (first_byte << 8) | second_byte;
+        std::cout << "Read WORD value " << std::hex << word_value << " from memory address: " << std::hex << address << std::endl;
+        return word_value;
+    }
+
+    Byte read_byte_from_stack(uint32_t& cycles, Memory& memory) {
+        std::cout << "Reading 1 byte from stack starting from address " << std::hex << SP_address() + 1 << std::endl;
+        SP++;
+        return read_byte_from_memory(cycles, memory, SP_address() + 1);
+    }
+
+    Word read_word_from_stack(uint32_t cycles, Memory& memory) {
+        Byte s_byte = read_byte_from_stack(cycles, memory);
+        Byte f_byte = read_byte_from_stack(cycles, memory);
+        std::cout << "First byte from stack is " << std::hex << f_byte << " second byte from stack is " << std::hex << s_byte;
+        return (f_byte << 8) | s_byte;
     }
 
     void lda_set_status()
@@ -131,7 +169,7 @@ struct CPU
             {
                 std::cout << "LDA ZERO PAGE" << std::endl;
                 Byte zero_page_address = fetch_byte(cycles, memory);
-                A = read_byte(cycles, memory, zero_page_address);
+                A = read_byte_from_memory(cycles, memory, zero_page_address);
                 lda_set_status();
                 std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
@@ -142,7 +180,7 @@ struct CPU
                 std::cout << "LDA ZERO PAGE X" << std::endl;
                 Byte zero_page_address = fetch_byte(cycles, memory);
                 Byte new_address = zero_page_address + X;
-                A = read_byte(cycles, memory, new_address);
+                A = read_byte_from_memory(cycles, memory, new_address);
                 lda_set_status();
                 std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
@@ -152,19 +190,31 @@ struct CPU
             {
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
-                memory.write_word(program_counter - 1, stack_pointer, cycles);
-                stack_pointer -= 2;
-                std::cout << "Override PC old value " << std::hex << program_counter << " with new value " << subroutine_addr << std::endl;
-                program_counter = subroutine_addr;
+                push_pc_to_stack(cycles, memory);
+                std::cout << "Override PC old value " << std::hex << PC << " with new value " << subroutine_addr << std::endl;
+                PC = subroutine_addr;
                 decrement_cycles(cycles, 1);
             }
+            break;
+
+            case INS_RTS:
+            {
+                std::cout << "Returning from a subroutine using RTS instruction" << std::endl;
+                std::cout << "Reading program counter register from stack" << std::endl;
+                Byte f_byte = read_byte_from_memory(cycles, memory, SP_address() + 2);
+                Byte s_byte = read_byte_from_memory(cycles, memory, SP_address() + 1);
+                Word PC_from_stack = read_word_from_stack(cycles, memory);
+                Word return_address = read_word_from_memory(cycles, memory, PC_from_stack);
+                std::cout << "Override old value " << std::hex << " of PC register with new value " << std::hex << return_address << std::endl;
+                PC = return_address;
+            } 
             break;
 
             case INS_LDA_ABS:
             {
                 std::cout << "LDA Absolute" << std::endl;
                 Word address = fetch_word(cycles, memory);
-                A = read_byte(cycles, memory, address);
+                A = read_byte_from_memory(cycles, memory, address);
                 lda_set_status();
                 std::cout << "Assigned value " << (int)A << " to register A" << std::endl;
             }
