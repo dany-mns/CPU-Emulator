@@ -97,6 +97,7 @@ struct CPU
 
     void push_pc_to_stack(uint32_t& cycles, Memory& memory) {
         std::cout << "Saving PC register with value " << to_hex(PC - 1) << " on stack at address " << to_hex(SP_address()) << std::endl;
+        // TODO why we push PC - 1
         memory.write_byte((PC -1) >> 8, SP_address(), cycles);
         SP--;
         memory.write_byte((PC - 1) & 0xFF, SP_address(), cycles);
