@@ -2,6 +2,9 @@
 #include <cassert>
 #include <iostream>
 #include <cstdint>
+#include <sstream>
+#include <iomanip>
+#include <string>
 
 #define MAX_MEMORY 64 * 1024 // 64 Kb
 
@@ -12,6 +15,12 @@ void decrement_cycles(uint32_t &cycles, uint32_t dec_value)
 {
     assert(cycles >= dec_value);
     cycles -= dec_value;
+}
+
+std::string to_hex(unsigned short a) {
+    std::stringstream stream;
+    stream << "0x" << std::hex << std::setw(4) << std::setfill('0') << a;
+    return stream.str();
 }
 
 struct Memory
@@ -87,10 +96,10 @@ struct CPU
     }
 
     void push_pc_to_stack(uint32_t& cycles, Memory& memory) {
-        std::cout << "Saving PC register with value " << std::hex << PC - 1 << " on stack at address " << std::hex << SP_address();
+        std::cout << "Saving PC register with value " << to_hex(PC - 1) << " on stack at address " << to_hex(SP_address()) << std::endl;
         memory.write_byte((PC -1) >> 8, SP_address(), cycles);
         SP--;
-        memory.write_byte((PC - 1) & 0xFF, SP, cycles);
+        memory.write_byte((PC - 1) & 0xFF, SP_address(), cycles);
         SP--;
     }
 
@@ -115,7 +124,7 @@ struct CPU
         assert(address < MAX_MEMORY);
         decrement_cycles(cycles, 1);
         Byte byte_value = memory.data[address];
-        std::cout << "Read BYTE value " << std::hex << byte_value << " from memory address: " << std::hex << address << std::endl;
+        std::cout << "Read BYTE value " << to_hex(byte_value) << " from memory address: " << to_hex(address) << std::endl;
         return byte_value;
     }
 
@@ -125,20 +134,21 @@ struct CPU
         Byte first_byte = read_byte_from_memory(cycles, memory, address);
         Byte second_byte = read_byte_from_memory(cycles, memory, address - 1);
         Word word_value = (first_byte << 8) | second_byte;
-        std::cout << "Read WORD value " << std::hex << word_value << " from memory address: " << std::hex << address << std::endl;
+        std::cout << "WORD value " << to_hex(word_value) << " from memory address: " << to_hex(address) << std::endl;
         return word_value;
     }
 
     Byte read_byte_from_stack(uint32_t& cycles, Memory& memory) {
-        std::cout << "Reading 1 byte from stack starting from address " << std::hex << SP_address() + 1 << std::endl;
+        Byte byte_value = read_byte_from_memory(cycles, memory, SP_address() + 1);
+        std::cout << "Reading 1 byte with value " << to_hex(byte_value) << " from stack starting from address " << to_hex(SP_address() + 1) << std::endl;
         SP++;
-        return read_byte_from_memory(cycles, memory, SP_address() + 1);
+        return byte_value;
     }
 
     Word read_word_from_stack(uint32_t cycles, Memory& memory) {
         Byte s_byte = read_byte_from_stack(cycles, memory);
         Byte f_byte = read_byte_from_stack(cycles, memory);
-        std::cout << "First byte from stack is " << std::hex << f_byte << " second byte from stack is " << std::hex << s_byte;
+        std::cout << "First byte from stack is " << to_hex(f_byte) << " second byte from stack is " << to_hex(s_byte) << std::endl;
         return (f_byte << 8) | s_byte;
     }
 
@@ -161,7 +171,7 @@ struct CPU
                 Byte value = fetch_byte(cycles, memory);
                 A = value;
                 lda_set_status();
-                std::cout << "Assigned value " << (int)value << " to reg A" << std::endl;
+                std::cout << "Assigned value " << to_hex(value) << " to reg A" << std::endl;
             }
             break;
 
@@ -171,7 +181,7 @@ struct CPU
                 Byte zero_page_address = fetch_byte(cycles, memory);
                 A = read_byte_from_memory(cycles, memory, zero_page_address);
                 lda_set_status();
-                std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
+                std::cout << "Assigned value " << std::hex << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
 
@@ -182,7 +192,7 @@ struct CPU
                 Byte new_address = zero_page_address + X;
                 A = read_byte_from_memory(cycles, memory, new_address);
                 lda_set_status();
-                std::cout << "Assigned value " << (int)A << " to reg A based on Zero Page instruction" << std::endl;
+                std::cout << "Assigned value " << to_hex(A) << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
 
@@ -191,7 +201,7 @@ struct CPU
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
                 push_pc_to_stack(cycles, memory);
-                std::cout << "Override PC old value " << std::hex << PC << " with new value " << subroutine_addr << std::endl;
+                std::cout << "Override PC old value " << to_hex(PC) << " with new value " << to_hex(subroutine_addr) << std::endl;
                 PC = subroutine_addr;
                 decrement_cycles(cycles, 1);
             }
@@ -201,9 +211,8 @@ struct CPU
             {
                 std::cout << "Returning from a subroutine using RTS instruction" << std::endl;
                 std::cout << "Reading program counter register from stack" << std::endl;
-                Word PC_from_stack = read_word_from_stack(cycles, memory);
-                Word return_address = read_word_from_memory(cycles, memory, PC_from_stack);
-                std::cout << "Override old value " << std::hex << PC << " of PC register with new value " << std::hex << return_address << std::endl;
+                Word return_address = read_word_from_stack(cycles, memory);
+                std::cout << "Override old value " << to_hex(PC) << " of PC register with new value " << to_hex(return_address) << std::endl;
                 PC = return_address;
             } 
             break;
@@ -237,7 +246,7 @@ struct CPU
             break;
 
             default:
-                std::cout << "Unknown instruction: " << instruction << std::endl;
+                std::cout << "Unknown instruction: " << to_hex(instruction) << std::endl;
                 break;
             }
         }
@@ -258,6 +267,24 @@ void test_sta_absolute() {
 
     cpu.execute(4, memory);
     assert(memory.data[0x0201] == 0x69);
+}
+
+void test_ins_rts()
+{
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_JSR;
+    memory.data[0xFFFD] = 0x42;
+    memory.data[0xFFFE] = 0x42;
+    memory.data[0x4242] = CPU::INS_LDA_IM;
+    memory.data[0x4243] = 0x69;
+    memory.data[0x4244] = CPU::INS_RTS;
+    cpu.execute(11, memory); // TODO compute later
+
+    assert(cpu.PC == 0xFFFE);
+    assert(cpu.A == 0x69);
 }
 
 void test_ins_jsr()
@@ -312,6 +339,7 @@ int main()
     // test_ins_jsr();
     // test_ins_lda_abs();
     // test_sta_zero_page();
-    test_sta_absolute();
+    // test_sta_absolute();
+    test_ins_rts();
     return 0;
 }
