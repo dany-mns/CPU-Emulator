@@ -150,9 +150,8 @@ struct CPU
 
     Word fetch_word(uint32_t &cycles, Memory &memory)
     {
-        Byte first_byte = memory.data[PC++];
-        Byte second_byte = memory.data[PC++];
-        decrement_cycles(cycles, 2);
+        Byte first_byte = fetch_byte(cycles, memory);
+        Byte second_byte = fetch_byte(cycles, memory);
 
         // little-endian -> second_byte "+" first_byte
         return (second_byte << 8) | first_byte;
@@ -241,7 +240,6 @@ struct CPU
             {
                 std::cout << "JSR: Load new address into PC" << std::endl;
                 Word subroutine_addr = fetch_word(cycles, memory);
-                // TODO why we push PC - 1
                 push_word_to_stack(cycles, memory, PC - 1);
                 std::cout << "Override PC old value " << to_hex(PC) << " with new value " << to_hex(subroutine_addr) << std::endl;
                 PC = subroutine_addr;
