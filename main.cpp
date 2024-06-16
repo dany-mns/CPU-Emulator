@@ -180,6 +180,7 @@ struct CPU
     Byte read_byte_from_stack(uint32_t& cycles, Memory& memory) {
         Byte byte_value = read_byte_from_memory(cycles, memory, SP_address() + 1);
         std::cout << "Reading 1 byte with value " << to_hex(byte_value) << " from stack starting from address " << to_hex(SP_address() + 1) << std::endl;
+        // TODO should I decrease 1 cycle for SP++?
         SP++;
         return byte_value;
     }
@@ -307,6 +308,7 @@ struct CPU
 
             case INS_STACK_TSX:
             {
+                // TODO should be 2 cycles. X = SP should consume 1 cycle?
                 std::cout << "Copies the current contents of the stack register " << SP << " into the X register" << std::endl;
                 std::cout << "Setting CPU flags" << std::endl;
                 X = SP;
@@ -345,6 +347,15 @@ struct CPU
                 std::cout << "Pull accumulator from stack from address " << to_hex(SP_address()) << " with value " << to_hex(v) << std::endl;
                 A = v;
                 A_reg_status();
+            }
+            break;
+
+            case INS_STACK_PLP:
+            {
+                // TODO why 4 cycles? and not 2, 1 for fetch instruction and 1 for writting into memory
+                Byte v = read_byte_from_stack(cycles, memory);
+                std::cout << "Pull accumulator from stack from address " << to_hex(SP_address()) << " with value " << to_hex(v) << std::endl;
+                set_flags(v);
             }
             break;
 
