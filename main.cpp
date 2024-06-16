@@ -103,6 +103,17 @@ struct CPU
         return flags;        
     }
 
+    void set_flags(Byte flags) {
+        carry_flag = (flags >> 0) & 0x01;
+        zero_flag = (flags >> 1) & 0x01;
+        interrupt_disable_flag = (flags >> 2) & 0x01;
+        decimal_flag = (flags >> 3) & 0x01;
+        break_flag = (flags >> 4) & 0x01;
+        unused_flag = (flags >> 5) & 0x01;
+        overflow_flag = (flags >> 6) & 0x01;
+        negative_flag = (flags >> 7) & 0x01;
+    }
+
     void reset(Memory &memory)
     {
         PC = 0xFFFC;
@@ -180,7 +191,7 @@ struct CPU
         return (f_byte << 8) | s_byte;
     }
 
-    void lda_set_status()
+    void A_reg_status()
     {
         zero_flag = A == 0;
         negative_flag = (A & 0b1000000) > 0;
@@ -199,7 +210,7 @@ struct CPU
                 std::cout << "LDA IMD" << std::endl;
                 Byte value = fetch_byte(cycles, memory);
                 A = value;
-                lda_set_status();
+                A_reg_status();
                 std::cout << "Assigned value " << to_hex(value) << " to reg A" << std::endl;
             }
             break;
@@ -209,7 +220,7 @@ struct CPU
                 std::cout << "LDA ZERO PAGE" << std::endl;
                 Byte zero_page_address = fetch_byte(cycles, memory);
                 A = read_byte_from_memory(cycles, memory, zero_page_address);
-                lda_set_status();
+                A_reg_status();
                 std::cout << "Assigned value " << std::hex << (int)A << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
@@ -220,7 +231,7 @@ struct CPU
                 Byte zero_page_address = fetch_byte(cycles, memory);
                 Byte new_address = zero_page_address + X;
                 A = read_byte_from_memory(cycles, memory, new_address);
-                lda_set_status();
+                A_reg_status();
                 std::cout << "Assigned value " << to_hex(A) << " to reg A based on Zero Page instruction" << std::endl;
             }
             break;
@@ -253,7 +264,7 @@ struct CPU
                 std::cout << "LDA Absolute" << std::endl;
                 Word address = fetch_word(cycles, memory);
                 A = read_byte_from_memory(cycles, memory, address);
-                lda_set_status();
+                A_reg_status();
                 std::cout << "Assigned value " << (int)A << " to register A" << std::endl;
             }
             break;
@@ -327,6 +338,16 @@ struct CPU
             }
             break;
 
+            case INS_STACK_PLA:
+            {
+                // TODO why 4 cycles? and not 2, 1 for fetch instruction and 1 for writting into memory
+                Byte v = read_byte_from_stack(cycles, memory);
+                std::cout << "Pull accumulator from stack from address " << to_hex(SP_address()) << " with value " << to_hex(v) << std::endl;
+                A = v;
+                A_reg_status();
+            }
+            break;
+
             default:
                 std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
                 stop_execution = true;
@@ -335,6 +356,21 @@ struct CPU
         }
     }
 };
+
+void test_pla() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_STACK_PLA;
+    cpu.A = 0x69;
+
+    memory.data[cpu.SP_address()] = 0x27;
+    cpu.SP--;
+
+    cpu.execute(4, memory);
+    assert(cpu.A == 0x27);
+}
 
 void test_pha() {
     Memory memory;
@@ -467,6 +503,7 @@ int main()
     // test_ins_rts();
     // test_jmp_absolute();
     // test_jmp_indirect();
-    test_pha();
+    // test_pha();
+    test_pla();
     return 0;
 }
