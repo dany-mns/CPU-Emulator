@@ -10,8 +10,8 @@
 
 #define MAX_MEMORY 64 * 1024 // 64 Kb
 
-using Byte = unsigned char;
-using Word = unsigned short;
+using Byte = uint8_t;
+using Word = uint16_t;
 
 void decrement_cycles(uint32_t &cycles, uint32_t dec_value)
 {
@@ -100,6 +100,8 @@ struct CPU
     static constexpr Byte INS_AND_IM = 0x29;
     static constexpr Byte INS_BIT_ZP = 0x24;
     static constexpr Byte INS_TXA = 0x8A;
+    static constexpr Byte INS_INC_ZP_X = 0xF6;
+    static constexpr Byte INS_INC_ABS_X = 0xFE;
 
     Byte all_flags() {
         Byte flags = 0;
@@ -151,6 +153,23 @@ struct CPU
         std::cout << "Saving byte value " << to_hex(value) << " on stack at address " << to_hex(SP_address()) << std::endl;
         memory.write_byte(value, SP_address(), cycles);
         SP--;
+    }
+
+    void write_byte_to_memory(uint32_t& cycles, Memory& memory, Byte value, Word address) {
+        assert(address < MAX_MEMORY);
+        std::cout << "Writing byte value " << to_hex(value) << " at address " << to_hex(address) << std::endl;
+        memory.data[address] = value;
+        decrement_cycles(cycles, 1);
+    }
+
+    void write_word_to_memory(uint32_t& cycles, Memory& memory, Word value, Word address) {
+        assert(address < MAX_MEMORY);
+        std::cout << "Writing word value " << to_hex(value) << " at address " << to_hex(address) << std::endl;
+        Byte f_byte = (value >> 8) & 0xFF;
+        Byte s_byte = value & 0xFF;
+        memory.data[address] = s_byte;
+        memory.data[address + 1] = f_byte;
+        decrement_cycles(cycles, 2);
     }
 
     Byte fetch_byte(uint32_t &cycles, Memory &memory)
@@ -400,6 +419,33 @@ struct CPU
             }
             break;
 
+            case INS_INC_ZP_X:
+            {
+                Byte zp_address = fetch_byte(cycles, memory);
+                // TODO this can be overflow of byte and we will lose some part. We take into consideration a word instead of byte ?!
+                Byte new_address = zp_address + X;
+                std::cout << "Increment value from address ZeroPage " << to_hex(zp_address) << " + X reg " << to_hex(X) << " = " << to_hex(new_address) << std::endl;
+                Byte value = read_byte_from_memory(cycles, memory, new_address);
+                std::cout << "Value from address " << to_hex(new_address) << " is " << to_hex(value) << std::endl;
+                Byte inc_value = value + 1;
+                std::cout << "Value " << to_hex(value) << " incremented is " << to_hex(inc_value) << std::endl;
+                write_byte_to_memory(cycles, memory, inc_value, new_address);
+            }
+            break;
+
+            case INS_INC_ABS_X:
+            {
+                Word im_address = fetch_word(cycles, memory);
+                Word new_address = im_address + X;
+                std::cout << "IM Address: " << to_hex(im_address) << " + " << " X: " << to_hex(X) << " = " << to_hex(new_address);
+                Word value = read_word_from_memory(cycles, memory, new_address);
+                Word inc_value = value + 1;
+                std::cout << "Value from address " << to_hex(new_address) << " is " << to_hex(value) << " and inc by 1 will be " << to_hex(inc_value) << std::endl;
+                write_word_to_memory(cycles, memory, inc_value, new_address);
+            }
+            break;
+
+
             default:
                 std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
                 stop_execution = true;
@@ -408,6 +454,38 @@ struct CPU
         }
     }
 };
+
+void test_INC_ZP_X() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_INC_ZP_X;
+    memory.data[0xFFFD] = 0x01;
+    cpu.X = 0x2;
+
+    memory.data[0x03] = 0x03;
+    cpu.execute(6, memory);
+
+    assert(memory[0x03] == 0x4);
+
+}
+
+void test_INS_ABS_X() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_INC_ABS_X;
+    memory.data[0xFFFD] = 0x21;
+    memory.data[0xFFFE] = 0x20;
+    cpu.X = 0x1;
+    memory.data[0x2022] = 0x27;
+
+    cpu.execute(7, memory);
+
+    assert(memory[0x2022] == 0x28);
+}
 
 
 void test_TXA() {
@@ -601,6 +679,8 @@ int main()
     // test_pla();
     // test_and_imd();
     // test_bit_zp();
-    test_TXA();
+    // test_TXA();
+    // test_INC_ZP_X();
+    test_INS_ABS_X();
     return 0;
 }
