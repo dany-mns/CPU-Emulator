@@ -99,6 +99,7 @@ struct CPU
     static constexpr Byte INS_STACK_PLP = 0x28;
     static constexpr Byte INS_AND_IM = 0x29;
     static constexpr Byte INS_BIT_ZP = 0x24;
+    static constexpr Byte INS_TXA = 0x8A;
 
     Byte all_flags() {
         Byte flags = 0;
@@ -390,6 +391,15 @@ struct CPU
             }
             break;
 
+            case INS_TXA:
+            {
+                std::cout << "Transfer value " << to_hex(X) << " from X reg to A reg with previous value " << to_hex(A) << std::endl;
+                A = X;
+                decrement_cycles(cycles, 1);
+                A_reg_status();   
+            }
+            break;
+
             default:
                 std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
                 stop_execution = true;
@@ -398,6 +408,20 @@ struct CPU
         }
     }
 };
+
+
+void test_TXA() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_TXA;
+    cpu.A = 0x27;
+    cpu.X = 0x26;
+    cpu.execute(2, memory);
+
+    assert(cpu.A == 0x26);
+}
 
 void test_bit_zp() {
     Memory memory;
@@ -576,6 +600,7 @@ int main()
     // test_pha();
     // test_pla();
     // test_and_imd();
-    test_bit_zp();
+    // test_bit_zp();
+    test_TXA();
     return 0;
 }
