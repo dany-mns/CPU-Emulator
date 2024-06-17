@@ -5,6 +5,8 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
+#include <bitset>
+
 
 #define MAX_MEMORY 64 * 1024 // 64 Kb
 
@@ -15,6 +17,12 @@ void decrement_cycles(uint32_t &cycles, uint32_t dec_value)
 {
     assert(cycles >= dec_value);
     cycles -= dec_value;
+}
+
+std::string to_binary(unsigned short a) {
+    std::stringstream stream;
+    stream << "0b" << std::bitset<16>(a);
+    return stream.str();
 }
 
 std::string to_hex(unsigned short a) {
@@ -89,6 +97,8 @@ struct CPU
     static constexpr Byte INS_STACK_PHP = 0x08;
     static constexpr Byte INS_STACK_PLA = 0x68;
     static constexpr Byte INS_STACK_PLP = 0x28;
+    static constexpr Byte INS_AND_IM = 0x29;
+    static constexpr Byte INS_BIT_ZP = 0x24;
 
     Byte all_flags() {
         Byte flags = 0;
@@ -348,12 +358,33 @@ struct CPU
             }
             break;
 
+            case INS_AND_IM:
+            {
+                Byte v = fetch_byte(cycles, memory);
+                std::cout << "Performing AND operation with INSTRUCTION AND IMEMEDIATE between " << to_hex(A) << " & " << to_hex(v) << std::endl;
+                A &= v;
+                std::cout << "Result between A reg and imd value: " << to_hex(A) << std::endl;
+                A_reg_status();
+            }
+            break;
+
             case INS_STACK_PLP:
             {
                 // TODO why 4 cycles? and not 2, 1 for fetch instruction and 1 for writting into memory
                 Byte v = read_byte_from_stack(cycles, memory);
                 std::cout << "Pull accumulator from stack from address " << to_hex(SP_address()) << " with value " << to_hex(v) << std::endl;
                 set_flags(v);
+            }
+            break;
+
+            case INS_BIT_ZP:
+            {
+                Byte v = fetch_byte(cycles, memory);
+                Byte result = A & v;
+                std::cout << "Check what bytes are set based on mask from register A = " << to_binary(A) << " and value " << to_binary(v) << ", result = " << to_binary(result) << std::endl;
+                negative_flag = (result & 0b1000000) > 0;
+                overflow_flag = (result & 0b100000) > 0;
+                decrement_cycles(cycles, 1);
             }
             break;
 
@@ -365,6 +396,19 @@ struct CPU
         }
     }
 };
+
+void test_and_imd() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_AND_IM;
+    cpu.A = 0b111;
+    memory.data[0xFFFD] = 0b010;
+
+    cpu.execute(2, memory);
+    assert(cpu.A == 0b010);
+}
 
 void test_pla() {
     Memory memory;
@@ -513,6 +557,7 @@ int main()
     // test_jmp_absolute();
     // test_jmp_indirect();
     // test_pha();
-    test_pla();
+    // test_pla();
+    test_and_imd();
     return 0;
 }
