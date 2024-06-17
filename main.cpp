@@ -488,6 +488,27 @@ struct CPU
             }
             break;
 
+            case INS_RTI:
+            {
+                std::cout << "Pulls the processor flags from the stack followed by the program counter" << std::endl;
+                Byte flags = read_byte_from_stack(cycles, memory);
+                PC = read_word_from_memory(cycles, memory) + 1;
+                set_flags(flags);
+            }
+            break;
+
+            case INS_BRK:
+            {
+                std::cout << "The program counter and processor status are pushed on the stack then the IRQ interrupt vector at $FFFE/F is loaded into the PC and the break flag in the status set to one" << std::endl;
+                push_word_to_stack(cycles, memory, PC - 1);
+                push_byte_to_stack(cycles, memory, all_flags());
+                Word interrupt_vect_addr = 0xFFFE;
+                PC = read_word_from_memory(cycles, memory, interrupt_vect_addr);
+                break_flag = 1;
+                interrupt_disable_flag = 1;
+            }
+            break;
+
             default:
                 std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
                 stop_execution = true;
@@ -497,7 +518,8 @@ struct CPU
     }
 };
 
-void test_BEQ() {
+void test_BEQ()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -508,7 +530,6 @@ void test_BEQ() {
 
     cpu.execute(2, memory);
 
-    
     assert(cpu.PC == 0xFFFF);
 }
 
