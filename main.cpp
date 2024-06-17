@@ -7,7 +7,6 @@
 #include <string>
 #include <bitset>
 
-
 #define MAX_MEMORY 64 * 1024 // 64 Kb
 
 using Byte = uint8_t;
@@ -19,13 +18,15 @@ void decrement_cycles(uint32_t &cycles, uint32_t dec_value)
     cycles -= dec_value;
 }
 
-std::string to_binary(unsigned short a) {
+std::string to_binary(unsigned short a)
+{
     std::stringstream stream;
     stream << "0b" << std::bitset<16>(a);
     return stream.str();
 }
 
-std::string to_hex(unsigned short a) {
+std::string to_hex(unsigned short a)
+{
     std::stringstream stream;
     stream << "0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << a;
     return stream.str();
@@ -77,7 +78,7 @@ struct CPU
     Byte interrupt_disable_flag : 1;
     Byte decimal_flag : 1;
     Byte break_flag : 1;
-    Byte unused_flag: 1;
+    Byte unused_flag : 1;
     Byte overflow_flag : 1;
     Byte negative_flag : 1;
 
@@ -102,8 +103,13 @@ struct CPU
     static constexpr Byte INS_TXA = 0x8A;
     static constexpr Byte INS_INC_ZP_X = 0xF6;
     static constexpr Byte INS_INC_ABS_X = 0xFE;
+    static constexpr Byte INS_NOP = 0xEA;
+    static constexpr Byte INS_RTI = 0x40;
+    static constexpr Byte INS_BRK = 0x00;
+    static constexpr Byte INS_BEQ = 0xF0;
 
-    Byte all_flags() {
+    Byte all_flags()
+    {
         Byte flags = 0;
         flags |= (carry_flag & 0x01) << 0;
         flags |= (zero_flag & 0x01) << 1;
@@ -113,10 +119,11 @@ struct CPU
         flags |= (unused_flag & 0x01) << 5;
         flags |= (overflow_flag & 0x01) << 6;
         flags |= (negative_flag & 0x01) << 7;
-        return flags;        
+        return flags;
     }
 
-    void set_flags(Byte flags) {
+    void set_flags(Byte flags)
+    {
         carry_flag = (flags >> 0) & 0x01;
         zero_flag = (flags >> 1) & 0x01;
         interrupt_disable_flag = (flags >> 2) & 0x01;
@@ -137,11 +144,13 @@ struct CPU
         memory.init();
     }
 
-    Word SP_address() const {
+    Word SP_address() const
+    {
         return 0x0100 | SP;
     }
 
-    void push_word_to_stack(uint32_t& cycles, Memory& memory, Word value) {
+    void push_word_to_stack(uint32_t &cycles, Memory &memory, Word value)
+    {
         std::cout << "Saving word value " << to_hex(value) << " on stack at address " << to_hex(SP_address()) << std::endl;
         memory.write_byte((value) >> 8, SP_address(), cycles);
         SP--;
@@ -149,20 +158,23 @@ struct CPU
         SP--;
     }
 
-    void push_byte_to_stack(uint32_t& cycles, Memory& memory, Byte value) {
+    void push_byte_to_stack(uint32_t &cycles, Memory &memory, Byte value)
+    {
         std::cout << "Saving byte value " << to_hex(value) << " on stack at address " << to_hex(SP_address()) << std::endl;
         memory.write_byte(value, SP_address(), cycles);
         SP--;
     }
 
-    void write_byte_to_memory(uint32_t& cycles, Memory& memory, Byte value, Word address) {
+    void write_byte_to_memory(uint32_t &cycles, Memory &memory, Byte value, Word address)
+    {
         assert(address < MAX_MEMORY);
         std::cout << "Writing byte value " << to_hex(value) << " at address " << to_hex(address) << std::endl;
         memory.data[address] = value;
         decrement_cycles(cycles, 1);
     }
 
-    void write_word_to_memory(uint32_t& cycles, Memory& memory, Word value, Word address) {
+    void write_word_to_memory(uint32_t &cycles, Memory &memory, Word value, Word address)
+    {
         assert(address < MAX_MEMORY);
         std::cout << "Writing word value " << to_hex(value) << " at address " << to_hex(address) << std::endl;
         Byte f_byte = (value >> 8) & 0xFF;
@@ -206,7 +218,8 @@ struct CPU
         return word_value;
     }
 
-    Byte read_byte_from_stack(uint32_t& cycles, Memory& memory) {
+    Byte read_byte_from_stack(uint32_t &cycles, Memory &memory)
+    {
         Byte byte_value = read_byte_from_memory(cycles, memory, SP_address() + 1);
         std::cout << "Reading 1 byte with value " << to_hex(byte_value) << " from stack starting from address " << to_hex(SP_address() + 1) << std::endl;
         // TODO should I decrease 1 cycle for SP++?
@@ -214,7 +227,8 @@ struct CPU
         return byte_value;
     }
 
-    Word read_word_from_stack(uint32_t& cycles, Memory& memory) {
+    Word read_word_from_stack(uint32_t &cycles, Memory &memory)
+    {
         Byte s_byte = read_byte_from_stack(cycles, memory);
         Byte f_byte = read_byte_from_stack(cycles, memory);
         std::cout << "First byte from stack is " << to_hex(f_byte) << " second byte from stack is " << to_hex(s_byte) << std::endl;
@@ -285,7 +299,7 @@ struct CPU
                 Word return_address = read_word_from_stack(cycles, memory) + 1;
                 std::cout << "Override old value " << to_hex(PC) << " of PC register with new value " << to_hex(return_address) << std::endl;
                 PC = return_address;
-            } 
+            }
             break;
 
             case INS_LDA_ABS:
@@ -309,7 +323,7 @@ struct CPU
 
             case INS_STA_ABS:
             {
-                std::cout <<"STA ABSOLUTE" << std::endl;
+                std::cout << "STA ABSOLUTE" << std::endl;
                 Word address = fetch_word(cycles, memory);
                 memory.write_byte(A, address, cycles);
                 std::cout << "Value " << (int)A << " was written at memory location: " << std::hex << address << std::endl;
@@ -328,7 +342,7 @@ struct CPU
             {
                 Word address = fetch_word(cycles, memory);
                 Word new_PC = read_word_from_memory(cycles, memory, address);
-                std::cout << "In the JMP instruction found address " << to_hex(address) << ", take PC address from that memory location" << std::endl; 
+                std::cout << "In the JMP instruction found address " << to_hex(address) << ", take PC address from that memory location" << std::endl;
                 std::cout << "Jumping using JMP INDIRECT from " << to_hex(PC) << " to address " << to_hex(new_PC) << std::endl;
                 PC = new_PC;
             }
@@ -357,7 +371,7 @@ struct CPU
             {
                 std::cout << "Push val reg A " << to_hex(A) << " to stack" << std::endl;
                 // TODO why 3 cycles?
-                push_byte_to_stack(cycles, memory, A);                
+                push_byte_to_stack(cycles, memory, A);
             }
             break;
 
@@ -415,7 +429,7 @@ struct CPU
                 std::cout << "Transfer value " << to_hex(X) << " from X reg to A reg with previous value " << to_hex(A) << std::endl;
                 A = X;
                 decrement_cycles(cycles, 1);
-                A_reg_status();   
+                A_reg_status();
             }
             break;
 
@@ -445,6 +459,34 @@ struct CPU
             }
             break;
 
+            case INS_NOP:
+            {
+                std::cout << "NOP -> No instruction" << std::endl;
+                decrement_cycles(cycles, 1);
+            }
+            break;
+
+            case INS_BEQ:
+            {
+                if (zero_flag == 1)
+                {
+                    Byte relative_addr = fetch_byte(cycles, memory);
+                    std::cout << "Zero flag is set -> jump to a new instruction using relative address " << to_hex(relative_addr) << std::endl;
+                    Word old_pc = PC;
+                    PC += relative_addr;
+
+                    const bool page_changed = (PC >> 8) != (old_pc >> 8);
+                    if (page_changed)
+                    {
+                        decrement_cycles(cycles, 1);
+                    }
+                }
+                else
+                {
+                    std::cout << "Zero flag is not set -> NO jump" << std::endl;
+                }
+            }
+            break;
 
             default:
                 std::cout << "Unknown instruction: " << to_hex(instruction) << " -> STOP execution" << std::endl;
@@ -455,7 +497,8 @@ struct CPU
     }
 };
 
-void test_INC_ZP_X() {
+void test_INC_ZP_X()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -468,10 +511,10 @@ void test_INC_ZP_X() {
     cpu.execute(6, memory);
 
     assert(memory[0x03] == 0x4);
-
 }
 
-void test_INS_ABS_X() {
+void test_INS_ABS_X()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -487,8 +530,8 @@ void test_INS_ABS_X() {
     assert(memory[0x2022] == 0x28);
 }
 
-
-void test_TXA() {
+void test_TXA()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -501,7 +544,8 @@ void test_TXA() {
     assert(cpu.A == 0x26);
 }
 
-void test_bit_zp() {
+void test_bit_zp()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -516,7 +560,8 @@ void test_bit_zp() {
     assert(cpu.zero_flag == 0b0);
 }
 
-void test_and_imd() {
+void test_and_imd()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -529,7 +574,8 @@ void test_and_imd() {
     assert(cpu.A == 0b010);
 }
 
-void test_pla() {
+void test_pla()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -544,7 +590,8 @@ void test_pla() {
     assert(cpu.A == 0x27);
 }
 
-void test_pha() {
+void test_pha()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -556,7 +603,8 @@ void test_pha() {
     assert(memory[cpu.SP_address() + 1] == 0x69);
 }
 
-void test_jmp_indirect() {
+void test_jmp_indirect()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -571,7 +619,8 @@ void test_jmp_indirect() {
     assert(cpu.PC == 0xBAFC);
 }
 
-void test_jmp_absolute() {
+void test_jmp_absolute()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
@@ -585,7 +634,8 @@ void test_jmp_absolute() {
     assert(cpu.PC == 0x0201);
 }
 
-void test_sta_absolute() {
+void test_sta_absolute()
+{
     Memory memory;
     CPU cpu;
     cpu.reset(memory);
