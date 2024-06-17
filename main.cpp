@@ -471,10 +471,10 @@ struct CPU
                 if (zero_flag == 1)
                 {
                     Byte relative_addr = fetch_byte(cycles, memory);
-                    std::cout << "Zero flag is set -> jump to a new instruction using relative address " << to_hex(relative_addr) << std::endl;
                     Word old_pc = PC;
                     PC += relative_addr;
 
+                    std::cout << "Zero flag is set -> jump to a new instruction using relative address " << to_hex(relative_addr) << " FROM " << to_hex(old_pc) << " TO " << to_hex(PC) << std::endl;
                     const bool page_changed = (PC >> 8) != (old_pc >> 8);
                     if (page_changed)
                     {
@@ -496,6 +496,21 @@ struct CPU
         }
     }
 };
+
+void test_BEQ() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_BEQ;
+    memory.data[0xFFFD] = 0x2;
+    cpu.zero_flag = 1;
+
+    cpu.execute(2, memory);
+
+    
+    assert(cpu.PC == 0xFFFF);
+}
 
 void test_INC_ZP_X()
 {
@@ -731,6 +746,7 @@ int main()
     // test_bit_zp();
     // test_TXA();
     // test_INC_ZP_X();
-    test_INS_ABS_X();
+    // test_INS_ABS_X();
+    test_BEQ();
     return 0;
 }
