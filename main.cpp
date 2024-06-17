@@ -379,11 +379,13 @@ struct CPU
 
             case INS_BIT_ZP:
             {
-                Byte v = fetch_byte(cycles, memory);
-                Byte result = A & v;
-                std::cout << "Check what bytes are set based on mask from register A = " << to_binary(A) << " and value " << to_binary(v) << ", result = " << to_binary(result) << std::endl;
-                negative_flag = (result & 0b1000000) > 0;
-                overflow_flag = (result & 0b100000) > 0;
+                Byte memory_value = fetch_byte(cycles, memory);
+                Byte result = A & memory_value;
+                zero_flag = result == 0;
+                std::cout << "Check what bytes are set based on mask from register A = " << to_binary(A) << " and value " << to_binary(memory_value) << ", result = " << to_binary(result) << std::endl;
+                negative_flag = (memory_value & 0b10000000) > 0;
+                overflow_flag = (memory_value & 0b1000000) > 0;
+                std::cout << "N flag = " << to_binary(negative_flag) << ", V flag = " << to_binary(overflow_flag) << std::endl;
                 decrement_cycles(cycles, 1);
             }
             break;
@@ -396,6 +398,21 @@ struct CPU
         }
     }
 };
+
+void test_bit_zp() {
+    Memory memory;
+    CPU cpu;
+    cpu.reset(memory);
+
+    memory.data[0xFFFC] = CPU::INS_BIT_ZP;
+    cpu.A = 0b11000000;
+    memory.data[0xFFFD] = 0b01000000;
+
+    cpu.execute(3, memory);
+    assert(cpu.overflow_flag == 0b1);
+    assert(cpu.negative_flag == 0b0);
+    assert(cpu.zero_flag == 0b0);
+}
 
 void test_and_imd() {
     Memory memory;
@@ -558,6 +575,7 @@ int main()
     // test_jmp_indirect();
     // test_pha();
     // test_pla();
-    test_and_imd();
+    // test_and_imd();
+    test_bit_zp();
     return 0;
 }
