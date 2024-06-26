@@ -17,6 +17,23 @@
             },
             "problemMatcher": ["$gcc"],
             "detail": "Generated task for building the C++ project."
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",  // Include debug symbols
+                "${workspaceFolder}/testing.cpp",
+                "-o",
+                "${workspaceFolder}/build/testing"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Generated task for building the C++ project."
         }
     ]
 }

@@ -33,6 +33,39 @@
                 "MIMode": "gdb",
                 "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
             }
+        },
+        {
+            "name": "Testing C++",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/testing",  // The path to your compiled executable
+            "args": [],  // Arguments for your program, if any
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",  // The working directory for the debugger
+            "environment": [],
+            // "externalConsole": true,  // If you want to use an external console
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",  // Adjust for your platform
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "build",  // Task defined in tasks.json to build your program
+            "internalConsoleOptions": "openOnSessionStart",
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/usr/bin/gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+            }
         }
     ]
 }
